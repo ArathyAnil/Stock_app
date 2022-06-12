@@ -1,7 +1,3 @@
-# from typing_extensions import Required
-# from typing_extensions import Required
-from msilib import change_sequence
-# from unittest.util import _MAX_LENGTH
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
@@ -9,6 +5,12 @@ from django.forms import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.password_validation import validate_password
 import datetime
+from django.utils.dateparse import parse_datetime
+import pandas_datareader.data as web
+import pandas as pd
+import pandas_datareader.data as web
+import numpy as np
+import yfinance as yf
 
 
 
@@ -22,7 +24,7 @@ class User(AbstractUser):
     PAN = models.CharField(max_length=10,unique=True)
     Password = models.CharField(max_length=68,blank=True,validators=[validate_password])
     Confirm_Password = models.CharField(max_length=68,blank=True,validators=[validate_password])
-    created_at = models.DateTimeField(auto_now_add=True,null=True,blank=True)
+    created_at = models.DateTimeField(null=True,blank=True,default=datetime.datetime.now)
 
 
     USERNAME_FIELD = 'Email'
@@ -43,30 +45,81 @@ class User(AbstractUser):
     
     
     def save(self, *args , **kwargs):
-        
-        self.username = str(self.Name[:3]) + str(self.Phone[-3:] + str(self.created_attrs))
+
+        self.created_at = self.created_at.strftime("%Y-%d-%m %H:%M:%S")
+        # c1 = created.replace()
+        self.username = str(self.Name[:3]) + str(self.Phone[-3:] + str(self.created_at))
         super().save(*args , **kwargs)
     
 
 
 
-class Portfolio(models.Model):
 
-    user = models.ForeignKey(User, related_name='users', on_delete=models.CASCADE)
-    earnt = 8000
-    spent = 5000
+class Ticker(models.Model):
+
+    ticker = models.CharField(max_length=10)
+    
+   
+
+    
+
+        
 
 
 class Stocks(models.Model):
+    NONE = 0
+    BUY = 1
+    SELL = 2
+    ACTION_CHOICES = (
+        (NONE,('none')),
+        (BUY, ('buy')),
+        (SELL, ('sell')),
+    )
+    
+    name = models.ForeignKey(User,max_length=255,on_delete=models.CASCADE)
+    ticker_chose = models.CharField(max_length=10)
+    # total_Price = models.FloatField(default=0, null=True)
+    Quantity = models.FloatField(max_length=255)
+    Price_per_stock = models.FloatField()
+    Total_price = models.FloatField()
+    action = models.PositiveIntegerField(choices=ACTION_CHOICES,default=NONE)
 
-  portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE)
-  ticker = models.CharField(max_length=10)
-  shares = models.PositiveIntegerField(default=0)
+    def __str__(self):
+        return self.ticker_chose.ticker
+
+    def create(self,*args , **kwargs):
+        ticker = self.ticker_chose
+        start = datetime.date.today()
+        # end = datetime.date.today()
+        d = yf.download(ticker,start,end=None)
+        df = pd.DataFrame(d)
+        blankIndex=[''] * len(df)
+        df.index=blankIndex
+        self.Price_per_stock=df['High']
+        super().save(*args , **kwargs)
+
+    def save(self, *args , **kwargs):
+
+        self.Total_price = self.Quantity * self.Price_per_stock
+        super().save(*args , **kwargs)
 
 
-class Transaction(models.Model):
 
-    stock = models.ForeignKey(Stocks, on_delete=models.CASCADE)
+
+
+
+class Portfolio(models.Model):
+
+    
+    user = models.ForeignKey(User, related_name='users', on_delete=models.CASCADE)
+    stock = models.ForeignKey(Stocks,max_length=10, on_delete=models.CASCADE)
+    Earnt = models.FloatField(default=5000)
+    Spent = models.FloatField(default=8000)
+
+
+
+
+
 
 
 

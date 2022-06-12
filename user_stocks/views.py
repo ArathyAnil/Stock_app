@@ -1,5 +1,12 @@
-# from .models import User,Portfolio,Stocks
-from .serializers import UserSerializer,LoginSerializer,PortfolioSerializer
+from ast import Is
+from dataclasses import field
+import datetime
+from tokenize import Name
+from urllib import response
+from wsgiref import headers
+from django.shortcuts import redirect, render
+from .models import User,Portfolio,Stocks,Ticker
+from .serializers import UserSerializer,LoginSerializer,PortfolioSerializer,StocksSerializer,TickerSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,6 +16,14 @@ from django.db.models import Q
 from django.contrib.auth import authenticate, login
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+import pandas_datareader.data as web
+from rest_framework.generics import ListCreateAPIView,ListAPIView
+import pandas as pd
+import yfinance as yf
+
+
+
 
 class RegisterUserAPIView(generics.CreateAPIView):
   permission_classes = ()
@@ -48,29 +63,116 @@ class LoginAPIView(RetrieveAPIView):
               'refresh_token': serializer.data['tokens']['refresh'],
               
           })
-# class portfolioAPIView(generics.GenericAPIView):
-#   permission_classes=[IsAuthenticated,]
-#   serializer_class = PortfolioSerializer
-
-# @api_view(['GET'])
-# def portfolio_stocks(request):
-    
-#     portfolio_info = []
-#     stock_list = Stocks.objects.filter(user=request.user)
-#     user1 = Portfolio.objects.filter(user=request.user)[0]
-#     money = {'spent' : user1.spent, 'earnt' : user1.earnt, 'value' : 0, 'profit': '+'}
-#     return money
- 
 
 
 
 
+class TickerAPIView(APIView):
+  permission_classes=[IsAuthenticated,]
+  serializer_class = TickerSerializer
+
+  def post(self,request):
+    serializer = TickerSerializer
+    ticker = request.data['ticker']
+    start = datetime.date.today()
+    # end = datetime.date.today()
+    d = yf.download(ticker,start,end=None)
+    df = pd.DataFrame(d)
+    df.head().to_dict()
+    print(df)
+    blankIndex=[''] * len(df)
+    df.index=blankIndex
+    price = df['High']
+    # price1 = price.to_json()
+    request.session['price']= price 
+    request.session['ticker']=ticker
+
+
+    return Response({
+      'message':'Ticker added successfully'
+    })
+
+
+
+class Buy_StocksAPIView(APIView):
+  permission_classes=[IsAuthenticated,]
+  serializer_class = PortfolioSerializer
+
+  def post(self,request):
+    # serializer = StocksSerializer
+    # ticker = request.data['ticker_chose']
+
+
+    serializer = StocksSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    return Response(
+        {
+        'message':'Stock Created Successfully',
+        'status':status.HTTP_201_CREATED,
+        'data':serializer.data,
+        
+    }
+    )
+
+
+class stocks_boughtAPIView(generics.ListAPIView):
+
+  permission_classes = [IsAuthenticated]
+  serializer_class = StocksSerializer
+
+  def get_queryset(self):
+    return Stocks.objects.filter(name=self.request.user)
+    # User = Stocks.objects.filter(name=request.user)
+    # serializer = StocksSerializer(User)
+
+class BalnceAPIView(generics.ListAPIView):
+
+  permission_classes = [IsAuthenticated]
+  serializer_class = StocksSerializer
+
+  def get(self,request):
+
+    user = Stocks.objects.filter(name=request.user)
+    current_bal = Portfolio.objects.get(Earnt=5000)
+    stock_bought = Stocks.objects.get('Total_price')
+    current_bal+=stock_bought
+    return Response(
+        {
+        'message':'Balance Created Successfully',
+        'status':status.HTTP_201_CREATED,
+        'data':current_bal,
+        
+    }
+    )
+
+class SellAPIView(generics.ListAPIView):
+
+  permission_classes = [IsAuthenticated]
+  serializer_class = StocksSerializer
+
+# @api_view(['POST'])
+  def post(self,request):
+      ticker = request.data['ticker_chose']
+      ticker_obj = Stocks.objects.get(ticker_chose= ticker)
+      ticker_obj.action = request.data['action']
+      if ticker_obj.action == '1':
+
+        ticker_obj.save()
+        return Response({'message':'Bought',
+                      'status':status.HTTP_200_OK})
+
+      elif ticker_obj.action == '2':
+          ticker_obj.delete()
+          return Response({'message':'Sold',
+                      'status':status.HTTP_200_OK})
 
 
 
 
 
-      
-    
 
+
+  
 

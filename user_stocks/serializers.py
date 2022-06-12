@@ -1,7 +1,8 @@
 
+from dataclasses import fields
 from rest_framework import serializers
 # from django.contrib.auth.models import User
-from .models import Stocks, User,Portfolio
+from .models import Stocks, User,Portfolio,Ticker
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.validators import UniqueValidator
@@ -82,7 +83,18 @@ class LoginSerializer(serializers.ModelSerializer):
             'tokens': user1.tokens,
         }
 
+class TickerSerializer(serializers.ModelSerializer):
 
+
+ 
+  class Meta:
+
+    model = Ticker
+
+    fields = ['ticker']
+#     # extra_kwargs = {
+
+#       # 'Price': {'read_only': True},}
 
 
 
@@ -101,5 +113,14 @@ class StocksSerializer(serializers.ModelSerializer):
 
     model = Stocks
 
-    fields = ['__all__']
+    fields = ['ticker_chose','Quantity','Price_per_stock','name','Total_price','action']
+
+  
+
+
+    
+
+      
+
+
 
